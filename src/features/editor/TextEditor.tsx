@@ -4,6 +4,7 @@ import styled from "styled-components";
 import Editor, { type EditorProps, loader, type OnMount, useMonaco } from "@monaco-editor/react";
 import useConfig from "../../store/useConfig";
 import useFile from "../../store/useFile";
+import useJson from "../../store/useJson"; // ...existing code...
 
 loader.config({
   paths: {
@@ -31,6 +32,10 @@ const TextEditor = () => {
   const theme = useConfig(state => (state.darkmodeEnabled ? "vs-dark" : "light"));
   const fileType = useFile(state => state.format);
 
+  // sync with central JSON store so external edits (NodeModal) update the editor
+  const storeJson = useJson(state => state.json);
+  const setJson = useJson(state => state.setJson);
+
   React.useEffect(() => {
     monaco?.languages.json.jsonDefaults.setDiagnosticsOptions({
       validate: true,
@@ -47,6 +52,15 @@ const TextEditor = () => {
       }),
     });
   }, [jsonSchema, monaco?.languages.json.jsonDefaults]);
+
+  // Keep local editor contents in sync when central JSON changes (NodeModal save)
+  React.useEffect(() => {
+    // avoid redundant updates
+    if (typeof storeJson === "string" && storeJson !== contents) {
+      // use skipUpdate so editor change handlers don't treat this as a user edit if your setContents expects that
+      setContents({ contents: storeJson, skipUpdate: true });
+    }
+  }, [storeJson, contents, setContents]);
 
   React.useEffect(() => {
     const beforeunload = (e: BeforeUnloadEvent) => {
@@ -85,7 +99,12 @@ const TextEditor = () => {
           options={editorOptions}
           onMount={handleMount}
           onValidate={errors => setError(errors[0]?.message || "")}
-          onChange={contents => setContents({ contents, skipUpdate: true })}
+          onChange={contents => {
+            // update file store (existing behavior)
+            setContents({ contents, skipUpdate: true });
+            // also persist to central json store so graph + other panes update
+            setJson(contents ?? "");
+          }}
           loading={<LoadingOverlay visible />}
         />
       </StyledWrapper>
