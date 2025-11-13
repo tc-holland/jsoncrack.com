@@ -4,7 +4,7 @@ import styled from "styled-components";
 import Editor, { type EditorProps, loader, type OnMount, useMonaco } from "@monaco-editor/react";
 import useConfig from "../../store/useConfig";
 import useFile from "../../store/useFile";
-import useJson from "../../store/useJson"; // ...existing code...
+import useJson from "../../store/useJson";
 
 loader.config({
   paths: {
